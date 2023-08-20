@@ -24,6 +24,9 @@ echo "Batch file is $BATCH_HOSTS_FILE"
 cat $BATCH_HOSTS_FILE
 output=/mnt/share/{{outdir}}
 
+# File to indicate the runs are done.
+donefile=${job_output}/done.marker
+
 if [ $BATCH_TASK_INDEX = 0 ]; then
   for name in osu_acc_latency osu_get_acc_latency osu_fop_latency osu_get_latency osu_put_latency osu_allreduce osu_latency osu_bibw osu_bw; do
       outfile="${job_output}/${name}.txt"
@@ -33,6 +36,13 @@ if [ $BATCH_TASK_INDEX = 0 ]; then
       echo "${name} is at ${latency_exe}"
       echo "mpirun --hostfile $BATCH_HOSTS_FILE -n {{tasks}} -ppn {{tasks_per_node}} ${latency_exe}"
       mpirun --hostfile $BATCH_HOSTS_FILE -n {{tasks}} -ppn {{tasks_per_node}} ${latency_exe} 2>&1 | tee ${outfile}
+  done
+  touch ${donefile}
+else 
+  # Sleep until we see it is done
+  while [ ! -f ${donefile} ]
+  do
+    sleep 10    
   done
 fi
 """
