@@ -26,11 +26,13 @@ output=/mnt/share/{{outdir}}
 
 if [ $BATCH_TASK_INDEX = 0 ]; then
   for name in osu_acc_latency osu_get_acc_latency osu_fop_latency osu_get_latency osu_put_latency osu_allreduce osu_latency osu_bibw osu_bw; do
+      outfile="${job_output}/${name}.txt"
+      echo "Results for ${name} will be in ${outfile}"
       latency_exe=$(find . -name ${name})
       latency_exe=$(realpath ${latency_exe})
       echo "${name} is at ${latency_exe}"
       echo "mpirun --hostfile $BATCH_HOSTS_FILE -n {{tasks}} -ppn {{tasks_per_node}} ${latency_exe}"
-      mpirun --hostfile $BATCH_HOSTS_FILE -n {{tasks}} -ppn {{tasks_per_node}} ${latency_exe} 2>&1 | tee ${job_output}/${name}.txt
+      mpirun --hostfile $BATCH_HOSTS_FILE -n {{tasks}} -ppn {{tasks_per_node}} ${latency_exe} 2>&1 | tee ${outfile}
   done
 fi
 """
@@ -87,8 +89,6 @@ cd /root && \
 mkdir -p /run/sshd && \
 ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa && chmod og+rX . && \
 cd .ssh && cat id_rsa.pub > authorized_keys && chmod 644 authorized_keys
-
-#mpicc -std=c99 -lmpi -lmpifort -O3 netmark.c -DTRACE -I/opt/intel/mpi/latest/include -I/opt/intel/mpi/2021.8.0/include -L/opt/intel/mpi/2021.8.0/lib/release -L/opt/intel/mpi/2021.8.0/lib -o netmark.x
 """
 
 
@@ -143,7 +143,9 @@ def get_parser():
     parser.add_argument(
         "--cpu-milli", help="milliseconds per cpu-second", type=int, default=1000
     )
-    parser.add_argument("--memory", help="memory in MiB", type=int, default=1000)  # 1GB
+    parser.add_argument(
+        "--memory", help="memory in MiB", type=int, default=16000
+    )  # 16GB
     return parser
 
 
@@ -230,11 +232,12 @@ def batch_job(
             "tasks": 2,
             "tasks_per_node": tasks_per_node,
             "outdir": outdir,
+            "job_output": job_output,
         }
     )
 
     setup_template = jinja2.Template(setup_script)
-    script = setup_template.render({"outdir": outdir, "job_output": job_output})
+    script = setup_template.render({"outdir": outdir})
 
     # Storage subdir name
     subdir = "osu-benchmarks"
